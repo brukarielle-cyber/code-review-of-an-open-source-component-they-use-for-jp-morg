@@ -1,37 +1,57 @@
-# Code review of an open-source component they use for JP Morgan
-
-a written review of one small module in an open-source project the company depends on, plus a small pull request or a well-written issue.
+# Pandas CSV Parser Review
+This project reviews `pandas.read_csv` row-width handling with a small synthetic example.
+Reliable inputs matter for analyst workflows such as workforce summaries and Excel reporting at JPMorgan Chase; this project uses no JPMorgan data and makes no claim about its internal software.
 
 ## Problem
 
-JPMorgan Chase has described building technology skills in house, including training people for technologist roles at one of its tech hubs. HR analyst postings at the company ask interns to compile data packages and use analytics to generate workforce insights, tasks that usually start as a manual spreadsheet pull of headcount, attrition, tenure, and pay data. Doing that pull by hand each time is slow and error prone, especially when it has to be redone for a new team or time period. This project builds a small Python tool that takes a workforce CSV and produces the same kind of one-page summary an HR team would compile: headcount by department, a 12-month attrition rate, average tenure, and compa-ratio by performance rating. I built and analyzed discounted cash flow models in Excel as a research analyst, so I am used to working with spreadsheet data and checking formulas by hand. I oversee membership operations for 100+ active members, which includes managing registration systems, attendance tracking, and participation analytics. My coursework includes Business Analytics, which covers the kind of data summarizing this project applies. The goal is a repository where a loader checks the input data, four metric functions compute the summary, and tests confirm the math against numbers worked out by hand on a small sample file.
+Before summarizing workforce or skills-training outcomes, how should an analyst distinguish a valid blank from a truncated CSV row? The brief describes mentorship and analyst work involving data and Excel; this review focuses on input quality, not on measuring those outcomes. It is an independent portfolio exercise, not a JPMorgan Chase project or endorsement.
 
 ## Data
 
-TODO(kitbound): Where the data comes from (with links), when you downloaded it, and what you cleaned. Label anything synthetic.
+[`data/synthetic_sample.csv`](data/synthetic_sample.csv) contains five fabricated rows for exercising the repository's CSV loader. The parser examples below are also fabricated inline; neither source contains employee or customer data. No dataset was downloaded. The reviewed open-source code is pandas 3.1.1: [`readers.py` documentation](https://github.com/pandas-dev/pandas/blob/v3.1.1/pandas/io/parsers/readers.py#L1668-L1684) and its [parser tests](https://github.com/pandas-dev/pandas/blob/v3.1.1/pandas/tests/io/parser/test_textreader.py#L157-L202).
 
 ## Approach
 
-TODO(kitbound): What you built and why: the steps, one choice you made and what you tried instead.
+I read the `read_csv` parameter documentation and the parser tests, then ran two small examples on the installed pandas 3.1.1. The repository itself depends on pandas for CSV loading (`src/load_data.py`).
+
+**Strength:** `on_bad_lines` has clear `error`, `warn`, and `skip` handling for rows with too many fields; the tests check raising, skipping, and warning behavior.
+
+**Improvement ideas:**
+- Offer an opt-in strict row-width check for rows with too few fields, preserving today's behavior by default.
+- Document and test the difference between a short row (currently padded with a missing value) and a complete row with an intentionally empty field.
 
 ## Results
 
-TODO(kitbound): What you measured, with the number and a chart or table. Report only results you produced.
+| Synthetic input | `on_bad_lines="error"` result on pandas 3.1.1 |
+| --- | --- |
+| `name,amount` / `A,10` / `B` | Returns 2 rows; `B.amount` is `NaN`; no exception. |
+| `name,amount` / `A,10` / `B,20,extra` | Raises `ParserError`. |
+
+The first case motivates the proposed enhancement, not a bug claim: the documented bad-line setting covers rows with too many fields. The existing project tests pass: `python -m pytest -q` reports 2 passed.
+
+## Issue draft
+
+[`ISSUE_DRAFT.md`](ISSUE_DRAFT.md) contains a reproducible feature request for opt-in rejection of short records. It has not been submitted to pandas.
 
 ## Limitations
 
-TODO(kitbound): What the data cannot tell you, and what would make the result wrong.
+- This review tests one behavior on pandas 3.1.1; it is not a comprehensive parser review or performance benchmark.
+- A missing value may be intentional, so rejecting short rows should be opt-in and backward compatible.
+- Public sources checked here do not establish that JPMorgan Chase uses pandas. The connection is analyst data quality and Excel-based workflows, not a claim about the company's software stack.
+- The Ashley Wigfall-specific URL supplied in the brief returned HTTP 404 during this review; verify that story's direct source before citing it externally.
 
 ## How to run
 
-TODO(kitbound): The exact commands to install, run, and test this.
-
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python -m src.analysis
-pytest
+python -m pytest -q
 ```
 
 ## Built with AI assistance
 
-I built this project with AI assistance (Kitbound's coach for planning and drafting, and an AI coding assistant for parts of the code). I chose the problem, ran every step, checked the results, and can explain every part. Anything synthetic is labeled synthetic.
+AI assistance helped organize and proofread this review. The pandas behavior described above was checked against the public source and tests and reproduced locally. Synthetic data is labeled as such.
+
+## Email summary
+
+I reviewed pandas' CSV row handling because reliable inputs are a practical part of analyst workflows relevant to JPMorgan Chase. On pandas 3.1.1, the documented `on_bad_lines="error"` catches rows with extra fields, while a short row is padded with `NaN`; I drafted an issue proposing an opt-in strict row-width check and clearer documentation. The examples and repository sample are synthetic, and I do not claim that JPMorgan Chase uses pandas or that this project is affiliated with the company.
